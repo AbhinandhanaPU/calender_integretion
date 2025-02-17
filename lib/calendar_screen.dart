@@ -15,7 +15,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
   final Set<DateTime> selectedDays = {};
-  Set<DateTime> _bookedDates = {};
+  final Set<DateTime> _bookedDates = {};
   Set<DateTime> _availableDates = {};
   bool _isLoading = false;
 
@@ -27,21 +27,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   /// Asynchronous function to fetch booked dates from the backend
   Future<void> _fetchBookedDates() async {
+    await Future.delayed(Duration(seconds: 1)); // Simulate API call
     setState(() {
-      _isLoading = true;
-    });
-
-    Set<DateTime> fetchedBookedDates = {
-      DateTime(2025, 2, 6),
-      DateTime(2025, 2, 8),
-      DateTime(2025, 2, 10),
-    };
-
-    setState(() {
-      _bookedDates = fetchedBookedDates;
+      _bookedDates.addAll({
+        DateTime(2025, 2, 10),
+        DateTime(2025, 2, 15),
+        DateTime(2025, 2, 16),
+        DateTime(2025, 2, 17),
+        DateTime(2025, 3, 1),
+        DateTime(2025, 3, 16),
+        DateTime(2025, 4, 16),
+        DateTime(2025, 5, 16),
+        DateTime(2025, 6, 16),
+      });
       _computeAvailableDates();
-    });
-    setState(() {
       _isLoading = false;
     });
   }
@@ -50,7 +49,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _computeAvailableDates() {
     Set<DateTime> availableDates = {};
     DateTime firstDay = DateTime(_focusedDay.year, _focusedDay.month, 1);
-    DateTime lastDay = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
+    DateTime lastDay = DateTime(_focusedDay.year, _focusedDay.month + 5, 0);
 
     for (DateTime day = firstDay;
         day.isBefore(lastDay.add(const Duration(days: 1)));
@@ -74,6 +73,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   /// Handles the logic for date selection
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    // Prevent selection of booked dates
+    if (_bookedDates.any((bookedDate) => isSameDay(selectedDay, bookedDate))) {
+      return;
+    }
+
+    // Prevent selection of past dates
+    if (selectedDay
+        .isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+      return;
+    }
+
     setState(() {
       _focusedDay = focusedDay;
 
@@ -182,136 +192,141 @@ class _CalendarScreenState extends State<CalendarScreen> {
       body: Column(
         children: [
           Container(
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+              color: Color(0xff252E41),
+            ),
             margin: const EdgeInsets.all(8.0),
             padding: const EdgeInsets.all(8.0),
             child: Column(
               children: [
-                // Loading indicator
-                if (_isLoading) const LinearProgressIndicator(),
-
-                TableCalendar(
-                  firstDay:
-                      DateTime(DateTime.now().year, DateTime.now().month, 1),
-                  lastDay: DateTime(
-                      DateTime.now().year, DateTime.now().month + 5, 0),
-                  focusedDay: _focusedDay,
-                  calendarFormat: _calendarFormat,
-                  rangeStartDay: _rangeStart,
-                  rangeEndDay: _rangeEnd,
-                  rangeSelectionMode: RangeSelectionMode.toggledOn,
-                  onDaySelected: _onDaySelected,
-                  calendarStyle: CalendarStyle(
-                    outsideDaysVisible: true,
-                    rangeHighlightColor: Color(0xff00B5CC).withAlpha(128),
-                    defaultTextStyle: const TextStyle(color: Colors.white),
-                    weekendTextStyle: const TextStyle(color: Colors.white),
-                    todayDecoration: BoxDecoration(
-                      color: Colors.blueAccent,
-                      shape: BoxShape.rectangle,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                  daysOfWeekStyle: const DaysOfWeekStyle(
-                    weekdayStyle: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    weekendStyle: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  headerStyle: HeaderStyle(
-                    formatButtonVisible: false,
-                    titleCentered: true,
-                    leftChevronIcon: Icon(
-                      Icons.chevron_left,
-                      color: Colors.white,
-                    ),
-                    rightChevronIcon: Icon(
-                      Icons.chevron_right,
-                      color: Colors.white,
-                    ),
-                    titleTextStyle: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  calendarBuilders: CalendarBuilders(
-                    rangeStartBuilder: (context, day, focusedDay) =>
-                        _buildRangeStart(day, focusedDay),
-                    rangeEndBuilder: (context, day, focusedDay) =>
-                        _buildRangeEnd(day, focusedDay),
-                    withinRangeBuilder: (context, day, focusedDay) =>
-                        _buildRangeMiddle(day, focusedDay),
-                    defaultBuilder: (context, day, _) {
-                      if (_bookedDates
-                          .any((bookedDate) => isSameDay(day, bookedDate))) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                day.day.toString(),
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Text(
-                                "Booked",
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      } else if (_isToday(day)) {
-                        return Container(
-                          margin: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
+                _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator()) // Loading indicator
+                    : TableCalendar(
+                        firstDay: DateTime(
+                            DateTime.now().year, DateTime.now().month, 1),
+                        lastDay: DateTime(
+                            DateTime.now().year, DateTime.now().month + 5, 0),
+                        focusedDay: _focusedDay,
+                        calendarFormat: _calendarFormat,
+                        rangeStartDay: _rangeStart,
+                        rangeEndDay: _rangeEnd,
+                        rangeSelectionMode: RangeSelectionMode.toggledOn,
+                        onDaySelected: _onDaySelected,
+                        calendarStyle: CalendarStyle(
+                          outsideDaysVisible: true,
+                          rangeHighlightColor: Color(0xff00B5CC).withAlpha(128),
+                          defaultTextStyle:
+                              const TextStyle(color: Colors.white),
+                          weekendTextStyle:
+                              const TextStyle(color: Colors.white),
+                          todayDecoration: BoxDecoration(
                             color: Colors.blueAccent,
                             shape: BoxShape.rectangle,
                             borderRadius: BorderRadius.circular(5),
                           ),
-                          child: Center(
-                            child: Text(
-                              day.day.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                        ),
+                        daysOfWeekStyle: const DaysOfWeekStyle(
+                          weekdayStyle: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                        );
-                      } else if (_availableDates.any(
-                          (availableDate) => isSameDay(day, availableDate))) {
-                        return Container(
-                          margin: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(5),
+                          weekendStyle: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                          child: Center(
-                            child: Text(
-                              day.day.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                        ),
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          leftChevronIcon: Icon(
+                            Icons.chevron_left,
+                            color: Colors.white,
                           ),
-                        );
-                      }
-                      return null;
-                    },
-                  ),
-                ),
+                          rightChevronIcon: Icon(
+                            Icons.chevron_right,
+                            color: Colors.white,
+                          ),
+                          titleTextStyle: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        calendarBuilders: CalendarBuilders(
+                          rangeStartBuilder: (context, day, focusedDay) =>
+                              _buildRangeStart(day, focusedDay),
+                          rangeEndBuilder: (context, day, focusedDay) =>
+                              _buildRangeEnd(day, focusedDay),
+                          withinRangeBuilder: (context, day, focusedDay) =>
+                              _buildRangeMiddle(day, focusedDay),
+                          defaultBuilder: (context, day, _) {
+                            if (_bookedDates.any(
+                                (bookedDate) => isSameDay(day, bookedDate))) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      day.day.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Text(
+                                      "Booked",
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            } else if (_isToday(day)) {
+                              return Container(
+                                margin: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueAccent,
+                                  shape: BoxShape.rectangle,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    day.day.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            } else if (_availableDates.any((availableDate) =>
+                                isSameDay(day, availableDate))) {
+                              return Container(
+                                margin: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.rectangle,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    day.day.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
               ],
             ),
           ),
