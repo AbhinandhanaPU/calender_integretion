@@ -1,5 +1,7 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Import intl package for date formatting
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -14,10 +16,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
-  final Set<DateTime> selectedDays = {};
+  Set<DateTime> selectedDays = {};
   final Set<DateTime> _bookedDates = {};
   Set<DateTime> _availableDates = {};
   bool _isLoading = false;
+
+  // Define the cutoff time for today's selection
+  final TimeOfDay _cutoffTime = const TimeOfDay(hour: 22, minute: 0);
 
   @override
   void initState() {
@@ -27,13 +32,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   /// Asynchronous function to fetch booked dates from the backend
   Future<void> _fetchBookedDates() async {
-    await Future.delayed(Duration(seconds: 1)); // Simulate API call
     setState(() {
       _bookedDates.addAll({
         DateTime(2025, 2, 10),
         DateTime(2025, 2, 15),
         DateTime(2025, 2, 16),
-        DateTime(2025, 2, 17),
         DateTime(2025, 3, 1),
         DateTime(2025, 3, 16),
         DateTime(2025, 4, 16),
@@ -54,7 +57,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     for (DateTime day = firstDay;
         day.isBefore(lastDay.add(const Duration(days: 1)));
         day = day.add(const Duration(days: 1))) {
-      if (!_bookedDates.contains(day)) {
+      if (!_bookedDates.any((bookedDate) => isSameDay(day, bookedDate))) {
         availableDates.add(day);
       }
     }
@@ -75,12 +78,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     // Prevent selection of booked dates
     if (_bookedDates.any((bookedDate) => isSameDay(selectedDay, bookedDate))) {
+      log("Day is booked, preventing selection");
       return;
     }
 
-    // Prevent selection of past dates
-    if (selectedDay
-        .isBefore(DateTime.now().subtract(const Duration(days: 1)))) {
+    DateTime now = DateTime.now();
+    DateTime today = DateTime(now.year, now.month, now.day);
+
+    // Create DateTime object representing the cutoff time *today*
+    DateTime cutoffDateTime = DateTime(
+      today.year,
+      today.month,
+      today.day,
+      _cutoffTime.hour,
+      _cutoffTime.minute,
+    );
+
+    //If the selectedDay is *before* today, prevent selection.
+    if (selectedDay.isBefore(today)) {
+      log("Selected day is BEFORE today, preventing selection");
+      return;
+    }
+
+    // If the selected day is *today* and the current time is *after* the cutoff time, prevent selection
+    if (isSameDay(selectedDay, today) && now.isAfter(cutoffDateTime)) {
+      log("Today after cutoff, preventing selection");
       return;
     }
 
@@ -113,7 +135,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildRangeStart(DateTime day, DateTime focusedDay) {
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xff00B5CC),
+        color: const Color(0xff00B5CC),
         shape: BoxShape.rectangle,
         borderRadius: BorderRadius.circular(5),
       ),
@@ -121,7 +143,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       alignment: Alignment.center,
       child: Text(
         '${day.day}',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        style:
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -130,7 +153,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget _buildRangeEnd(DateTime day, DateTime focusedDay) {
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xff00B5CC),
+        color: const Color(0xff00B5CC),
         shape: BoxShape.rectangle,
         borderRadius: BorderRadius.circular(5),
       ),
@@ -153,7 +176,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       alignment: Alignment.center,
       child: Text(
         '${day.day}',
-        style: TextStyle(
+        style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
         ),
@@ -164,9 +187,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xff1B2230),
+      backgroundColor: const Color(0xff1B2230),
       appBar: AppBar(
-        backgroundColor: Color(0xff1B2230),
+        backgroundColor: const Color(0xff1B2230),
         foregroundColor: Colors.white,
         title: const Text("Custom Calendar"),
         actions: [
@@ -177,14 +200,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
           GestureDetector(
             onTap: _rangeStart != null ? _clearDateRange : null,
             child: Container(
-                padding: EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(15),
                   color: _rangeStart != null ? Colors.blue : Colors.grey,
                 ),
                 child: const Text('Clear Range')),
           ),
-          SizedBox(
+          const SizedBox(
             width: 10,
           )
         ],
@@ -201,7 +224,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Column(
               children: [
                 _isLoading
-                    ? Center(
+                    ? const Center(
                         child: CircularProgressIndicator()) // Loading indicator
                     : TableCalendar(
                         firstDay: DateTime(
@@ -216,7 +239,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         onDaySelected: _onDaySelected,
                         calendarStyle: CalendarStyle(
                           outsideDaysVisible: true,
-                          rangeHighlightColor: Color(0xff00B5CC).withAlpha(128),
+                          rangeHighlightColor:
+                              const Color(0xff00B5CC).withAlpha(128),
                           defaultTextStyle:
                               const TextStyle(color: Colors.white),
                           weekendTextStyle:
@@ -240,15 +264,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         headerStyle: HeaderStyle(
                           formatButtonVisible: false,
                           titleCentered: true,
-                          leftChevronIcon: Icon(
+                          leftChevronIcon: const Icon(
                             Icons.chevron_left,
                             color: Colors.white,
                           ),
-                          rightChevronIcon: Icon(
+                          rightChevronIcon: const Icon(
                             Icons.chevron_right,
                             color: Colors.white,
                           ),
-                          titleTextStyle: TextStyle(
+                          titleTextStyle: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
