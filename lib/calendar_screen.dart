@@ -40,8 +40,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         DateTime(2025, 3, 1),
         DateTime(2025, 3, 16),
         DateTime(2025, 4, 16),
-        DateTime(2025, 5, 16),
-        DateTime(2025, 6, 16),
+        DateTime(2025, 5, 18),
+        DateTime(2025, 6, 25),
       });
       _computeAvailableDates();
       _isLoading = false;
@@ -74,7 +74,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         day.day == DateTime.now().day;
   }
 
-  /// Handles the logic for date selection
+  // Handles the logic for date selection
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     // Prevent selection of booked dates
     if (_bookedDates.any((bookedDate) => isSameDay(selectedDay, bookedDate))) {
@@ -84,7 +84,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     DateTime now = DateTime.now();
     DateTime today = DateTime(now.year, now.month, now.day);
-
     // Create DateTime object representing the cutoff time *today*
     DateTime cutoffDateTime = DateTime(
       today.year,
@@ -94,32 +93,56 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _cutoffTime.minute,
     );
 
-    //If the selectedDay is *before* today, prevent selection.
+    // If the selected day is before today, prevent selection.
     if (selectedDay.isBefore(today)) {
       log("Selected day is BEFORE today, preventing selection");
       return;
     }
 
-    // If the selected day is *today* and the current time is *after* the cutoff time, prevent selection
+    // If the selected day is today and the current time is after the cutoff time, prevent selection
     if (isSameDay(selectedDay, today) && now.isAfter(cutoffDateTime)) {
       log("Today after cutoff, preventing selection");
       return;
     }
 
+    // Range selection logic
+    if (_rangeStart == null) {
+      _rangeStart = selectedDay;
+      _rangeEnd = null;
+    } else if (_rangeEnd == null && selectedDay.isAfter(_rangeStart!) ||
+        isSameDay(selectedDay, _rangeStart!)) {
+      // It is necessary to check any booked dates fall within the potential selection
+      DateTime rangeStartDate = _rangeStart!;
+      DateTime rangeEndDate = selectedDay;
+
+      // Ensure startDate is before endDate
+      if (rangeStartDate.isAfter(rangeEndDate)) {
+        rangeStartDate = selectedDay;
+        rangeEndDate = _rangeStart!;
+      }
+
+      // Check if any booked dates fall within the selected range
+      for (DateTime bookedDate in _bookedDates) {
+        if ((bookedDate.isAtSameMomentAs(rangeStartDate) ||
+                bookedDate.isAfter(rangeStartDate)) &&
+            (bookedDate.isBefore(rangeEndDate.add(const Duration(days: 0))) ||
+                bookedDate.isAtSameMomentAs(
+                    rangeEndDate.add(const Duration(days: 0))))) {
+          log("Selected range includes a booked date, preventing selection");
+          _rangeStart = null; // Reset range selection
+          _rangeEnd = null; // Reset range selection
+          return;
+        }
+      }
+
+      _rangeEnd = selectedDay; // Set end date if no conflicts
+    } else {
+      _rangeStart = selectedDay; // Reset start date
+      _rangeEnd = null; // Reset end date
+    }
+
     setState(() {
       _focusedDay = focusedDay;
-
-      // Range selection logic
-      if (_rangeStart == null) {
-        _rangeStart = selectedDay;
-        _rangeEnd = null;
-      } else if (_rangeEnd == null && selectedDay.isAfter(_rangeStart!) ||
-          selectedDay.isAtSameMomentAs(_rangeStart!)) {
-        _rangeEnd = selectedDay;
-      } else {
-        _rangeStart = selectedDay;
-        _rangeEnd = null;
-      }
     });
   }
 
